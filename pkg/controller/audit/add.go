@@ -2,6 +2,7 @@ package audit
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/gardener/gardener/extensions/pkg/controller/extension"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
@@ -39,12 +40,14 @@ type AddOptions struct {
 
 // AddToManager adds a controller with the default Options to the given Controller Manager.
 func AddToManager(ctx context.Context, mgr manager.Manager) error {
+	fmt.Println("debug: add to manager ")
 	return AddToManagerWithOptions(ctx, mgr, DefaultAddOptions)
 }
 
 // AddToManagerWithOptions adds a controller with the given Options to the given manager.
 // The opts.Reconciler is being set with a newly instantiated actuator.
 func AddToManagerWithOptions(ctx context.Context, mgr manager.Manager, opts AddOptions) error {
+	fmt.Println("debug: add to manager with options")
 	return extension.Add(mgr, extension.AddArgs{
 		Actuator:          NewActuator(mgr, opts.Config),
 		ControllerOptions: opts.ControllerOptions,

@@ -48,6 +48,7 @@ import (
 
 // NewActuator returns an actuator responsible for Extension resources.
 func NewActuator(mgr manager.Manager, config config.ControllerConfiguration) extension.Actuator {
+	fmt.Println("debug: new actuator")
 	return &actuator{
 		client:  mgr.GetClient(),
 		decoder: serializer.NewCodecFactory(mgr.GetScheme(), serializer.EnableStrict).UniversalDecoder(),
@@ -63,6 +64,7 @@ type actuator struct {
 
 // Reconcile the Extension resource.
 func (a *actuator) Reconcile(ctx context.Context, log logr.Logger, ex *extensionsv1alpha1.Extension) error {
+	fmt.Println("debug: reconcile")
 	auditConfig := &v1alpha1.AuditConfig{}
 	if ex.Spec.ProviderConfig != nil {
 		if _, _, err := a.decoder.Decode(ex.Spec.ProviderConfig.Raw, nil, auditConfig); err != nil {
@@ -70,6 +72,7 @@ func (a *actuator) Reconcile(ctx context.Context, log logr.Logger, ex *extension
 		}
 	}
 
+	fmt.Println("debug: apply default backends")
 	backends, defaultBackendSecrets, err := a.applyDefaultBackends(ctx, log, auditConfig.Backends)
 	if err != nil {
 		log.Error(err, "unable to apply default backends configured by operator, continuing anyway but configuration of this extension needs to be checked")
@@ -79,11 +82,13 @@ func (a *actuator) Reconcile(ctx context.Context, log logr.Logger, ex *extension
 
 	namespace := ex.GetNamespace()
 
+	fmt.Println("debug: get cluster")
 	cluster, err := controller.GetCluster(ctx, a.client, namespace)
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("debug: generate certs")
 	certs, err := a.generateCerts(ctx, log, cluster)
 	if err != nil {
 		return err
@@ -93,11 +98,13 @@ func (a *actuator) Reconcile(ctx context.Context, log logr.Logger, ex *extension
 	maps.Copy(secrets, defaultBackendSecrets)
 	maps.Copy(secrets, certs)
 
+	fmt.Println("debug: shoot backends")
 	shootBackends, err := a.shootBackends(ctx, cluster, secrets, backends, namespace)
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("debug: create resource")
 	if err := a.createResources(ctx, log, auditConfig, cluster, shootBackends, namespace); err != nil {
 		return err
 	}
@@ -209,25 +216,31 @@ func (a *actuator) applyDefaultBackends(ctx context.Context, log logr.Logger, ba
 
 // Delete the Extension resource.
 func (a *actuator) Delete(ctx context.Context, log logr.Logger, ex *extensionsv1alpha1.Extension) error {
+	fmt.Println("debug: delete")
 	return a.deleteResources(ctx, log, ex.GetNamespace())
 }
 
 func (a *actuator) ForceDelete(_ context.Context, _ logr.Logger, _ *extensionsv1alpha1.Extension) error {
+	fmt.Println("debug: force delete")
 	return nil
 }
 
 // Restore the Extension resource.
 func (a *actuator) Restore(ctx context.Context, log logr.Logger, ex *extensionsv1alpha1.Extension) error {
+	fmt.Println("debug: restore")
 	return a.Reconcile(ctx, log, ex)
 }
 
 // Migrate the Extension resource.
 func (a *actuator) Migrate(ctx context.Context, log logr.Logger, ex *extensionsv1alpha1.Extension) error {
+	fmt.Println("debug: migrate")
 	return nil
 }
 
 func (a *actuator) createResources(ctx context.Context, log logr.Logger, auditConfig *v1alpha1.AuditConfig, cluster *extensions.Cluster, backends map[string]backend.Backend, namespace string) error {
 	shootObjects := []client.Object{}
+
+	fmt.Printf("debug: append shoot object for %d backend\n", len(backends))
 	for _, backend := range backends {
 		shootObjects = append(shootObjects, backend.AdditionalShootObjects(cluster)...)
 	}
@@ -236,27 +249,35 @@ func (a *actuator) createResources(ctx context.Context, log logr.Logger, auditCo
 	if err != nil {
 		return err
 	}
+
+	fmt.Printf("debug: append seed object for %d backend\n", len(backends))
 	for _, backend := range backends {
 		seedObjects = append(seedObjects, backend.AdditionalSeedObjects(cluster)...)
 	}
 
+	fmt.Println("debug: new registry for shoot resources")
 	shootResources, err := managedresources.NewRegistry(kubernetes.ShootScheme, kubernetes.ShootCodec, kubernetes.ShootSerializer).AddAllAndSerialize(shootObjects...)
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("debug: new registry for seed resources")
 	seedResources, err := managedresources.NewRegistry(kubernetes.SeedScheme, kubernetes.SeedCodec, kubernetes.SeedSerializer).AddAllAndSerialize(seedObjects...)
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("debug: create shoot resources")
 	if err := managedresources.CreateForShoot(ctx, a.client, namespace, v1alpha1.ShootAuditResourceName, "audit-extension", false, shootResources); err != nil {
+		fmt.Printf("debug: failed to create shoot resources, err: %s\n", err)
 		return err
 	}
 
 	log.Info("managed resource created successfully", "name", v1alpha1.ShootAuditResourceName)
 
+	fmt.Println("debug: create seed resources")
 	if err := managedresources.CreateForSeed(ctx, a.client, namespace, v1alpha1.SeedAuditResourceName, false, seedResources); err != nil {
+		fmt.Printf("debug: failed to create seed resources, err: %s\n", err)
 		return err
 	}
 

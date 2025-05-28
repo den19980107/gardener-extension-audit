@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"os"
 
 	controllercmd "github.com/gardener/gardener/extensions/pkg/controller/cmd"
@@ -29,6 +30,7 @@ type Options struct {
 
 // NewOptions creates a new Options instance.
 func NewOptions() *Options {
+	fmt.Println("debug: new option")
 	// options for the webhook server
 	webhookServerOptions := &webhookcmd.ServerOptions{
 		Namespace: os.Getenv("WEBHOOK_CONFIG_NAMESPACE"),

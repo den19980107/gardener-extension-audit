@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	controllercmd "github.com/gardener/gardener/extensions/pkg/controller/cmd"
 	extensionshealthcheckcontroller "github.com/gardener/gardener/extensions/pkg/controller/healthcheck"
 	extensionsheartbeatcontroller "github.com/gardener/gardener/extensions/pkg/controller/heartbeat"
@@ -12,6 +14,7 @@ import (
 
 // ControllerSwitchOptions are the controllercmd.SwitchOptions for the provider controllers.
 func ControllerSwitchOptions() *controllercmd.SwitchOptions {
+	fmt.Println("debug controller switch options")
 	return controllercmd.NewSwitchOptions(
 		controllercmd.Switch(audit.ControllerName, audit.AddToManager),
 		controllercmd.Switch(extensionshealthcheckcontroller.ControllerName, healthcheck.AddToManager),
