@@ -267,21 +267,21 @@ func (a *actuator) createResources(ctx context.Context, log logr.Logger, auditCo
 		return err
 	}
 
-	fmt.Println("debug: create shoot resources")
+	fmt.Printf("debug: create shoot resources at namespace: %s, resource name: %s, resources: %+v\n", namespace, v1alpha1.ShootAuditResourceName, shootResources)
 	if err := managedresources.CreateForShoot(ctx, a.client, namespace, v1alpha1.ShootAuditResourceName, "audit-extension", false, shootResources); err != nil {
 		fmt.Printf("debug: failed to create shoot resources, err: %s\n", err)
 		return err
 	}
 
-	log.Info("managed resource created successfully", "name", v1alpha1.ShootAuditResourceName)
+	log.Info("debug: managed resource created successfully", "name", v1alpha1.ShootAuditResourceName)
 
-	fmt.Println("debug: create seed resources")
+	fmt.Printf("debug: create seed resources at namespace: %s, resource name: %s, resources: %+v\n", namespace, v1alpha1.SeedAuditResourceName, seedResources)
 	if err := managedresources.CreateForSeed(ctx, a.client, namespace, v1alpha1.SeedAuditResourceName, false, seedResources); err != nil {
 		fmt.Printf("debug: failed to create seed resources, err: %s\n", err)
 		return err
 	}
 
-	log.Info("managed resource created successfully", "name", v1alpha1.SeedAuditResourceName)
+	log.Info("debug: managed resource created successfully", "name", v1alpha1.SeedAuditResourceName)
 
 	return nil
 }
