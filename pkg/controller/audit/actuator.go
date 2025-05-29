@@ -280,7 +280,10 @@ func (a *actuator) createResources(ctx context.Context, log logr.Logger, auditCo
 	if err != nil {
 		fmt.Printf("debug: failed to list namespace, err: %s\n", err)
 	} else {
-		fmt.Printf("debug: list namespace successfully, namespaces: %s", namespaceList.String())
+		fmt.Printf("debug: list namespace successfully, namespaces:\n")
+		for _, namespace := range namespaceList.Items {
+			fmt.Printf("debug: namespace: %s\n", namespace.Namespace)
+		}
 	}
 
 	fmt.Printf("debug: create seed resources at namespace: %s, resource name: %s, resources: %+v\n", namespace, v1alpha1.SeedAuditResourceName, seedResources)
