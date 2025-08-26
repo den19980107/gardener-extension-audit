@@ -155,6 +155,20 @@ func (a *actuator) shootBackends(ctx context.Context, cluster *extensions.Cluste
 		backendMap["splunk"] = splunkBackend
 	}
 
+	if pointer.SafeDeref(backends.S3).Enabled {
+		s3Secret, err := a.findBackendSecret(ctx, cluster, secrets, backends.S3.SecretResourceName)
+		if err != nil {
+			return nil, err
+		}
+
+		s3Backend, err := backend.NewS3(backends.S3, s3Secret)
+		if err != nil {
+			return nil, fmt.Errorf("error creating s3 backend: %w", err)
+		}
+
+		backendMap["s3"] = s3Backend
+	}
+
 	return backendMap, nil
 }
 
@@ -451,13 +465,10 @@ func seedObjects(auditConfig *v1alpha1.AuditConfig, cluster *extensions.Cluster,
 
 		auditwebhookStatefulSet = &appsv1.StatefulSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "audit-webhook-backend",
-				Namespace: namespace,
-				Annotations: map[string]string{
-					"checksum/secret-" + auditWebhookConfigSecret.Name: utils.ComputeSecretChecksum(auditWebhookConfigSecret.Data),
-					"checksum/config-" + fluentbitConfigMap.Name:       utils.ComputeConfigMapChecksum(fluentbitConfigMap.Data),
-				},
-				Labels: map[string]string{},
+				Name:        "audit-webhook-backend",
+				Namespace:   namespace,
+				Annotations: map[string]string{},
+				Labels:      map[string]string{},
 			},
 			Spec: appsv1.StatefulSetSpec{
 				Replicas:    getReplicas(cluster, auditConfig.Replicas),
@@ -484,6 +495,7 @@ func seedObjects(auditConfig *v1alpha1.AuditConfig, cluster *extensions.Cluster,
 							"prometheus.io/scrape":                                    "true",
 							"prometheus.io/port":                                      "2020",
 							"prometheus.io/path":                                      "/api/v1/metrics/prometheus",
+							"checksum/secret-" + auditWebhookConfigSecret.Name:        utils.ComputeSecretChecksum(auditWebhookConfigSecret.Data),
 						},
 					},
 					Spec: corev1.PodSpec{
@@ -642,6 +654,9 @@ func seedObjects(auditConfig *v1alpha1.AuditConfig, cluster *extensions.Cluster,
 		fluentbitConfigMap.Data[key] = backend.FluentBitConfig(cluster).Generate()
 		backend.PatchAuditWebhook(auditwebhookStatefulSet)
 	}
+
+	// calculate configmap checksum after all backends are applied
+	auditwebhookStatefulSet.Spec.Template.Annotations["checksum/config-"+fluentbitConfigMap.Name] = utils.ComputeConfigMapChecksum(fluentbitConfigMap.Data)
 
 	return objects, nil
 }
